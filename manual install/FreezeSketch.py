@@ -1,22 +1,3 @@
-# -*- coding: utf-8 -*-
-# FreezeSketch.FCMacro
-# A macro to convert a sketch into a ShapeBinder in FreeCAD's PartDesign workbench
-#
-# __Name__ = "Freeze Sketch"
-# __Comment__ = "Converts a selected sketch into a ShapeBinder within a PartDesign Body, with options to delete the original sketch."
-# __Author__ = "Anton Askling"
-# __Version__ = "1.0"
-# __Date__ = "2025-03-24"
-# __License__ = "MIT"
-# __Web__ = "https://github.com/4ntm4n/FreeCAD-FreezeSketch"
-# __Icon__ = ":/icons/DrawStyleShaded.svg"  # temporary icon, replace manually after install
-# __Help__ = "Select a sketch in a PartDesign Body and run the macro."
-# __Status__ = "Stable"
-# __Requires__ = "FreeCAD 0.19 or later"
-# __Communication__ = "Report issues at https://github.com/yourusername/FreeCAD-FreezeSketch/issues"
-# __Files__ = "FreezeSketch.FCMacro, FreezeSketch.py, FreezeSketch_icon.svg"
-
-
 import FreeCAD
 import FreeCADGui
 import PartDesign
