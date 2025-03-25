@@ -33,101 +33,81 @@ def set_delete_preference(value):
     param = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Macro")
     param.SetString("DeleteSketchPreference", value)
 
-class FreezeSketchCommand:
-    """Command to freeze a sketch into a ShapeBinder"""
+# Get the active document
+doc = FreeCAD.ActiveDocument
 
-    def GetResources(self):
-        # Define the macro's UI elements
-        return {
-            "Pixmap": ":/icons/DrawStyleShaded.svg",  # Use FreeCAD's built-in icon
-            "MenuText": "Freeze Sketch",
-            "ToolTip": "Convert a selected sketch into a ShapeBinder with delete options",
-            "Accel": "Ctrl+Shift+F"  # Keyboard shortcut
-        }
+# Get the selected objects
+sel = FreeCADGui.Selection.getSelection()
+if not sel:
+    FreeCAD.Console.PrintError("Please select a sketch to freeze.\n")
+    raise Exception("No sketch selected")
 
-    def Activated(self):
-        # Get the active document
-        doc = FreeCAD.ActiveDocument
+# Process the selected sketch
+obj = sel[0]  # Take the first selected object
+if obj.TypeId != "Sketcher::SketchObject":
+    FreeCAD.Console.PrintError(f"Selected object '{obj.Label}' is not a sketch.\n")
+    raise Exception("Selected object is not a sketch")
 
-        # Get the selected objects
-        sel = FreeCADGui.Selection.getSelection()
-        if not sel:
-            FreeCAD.Console.PrintError("Please select a sketch to freeze.\n")
-            return
+# Find the parent body (if any)
+parent_body = None
+for parent in obj.InList:
+    if parent.TypeId == "PartDesign::Body":
+        parent_body = parent
+        break
 
-        # Process the selected sketch
-        obj = sel[0]  # Take the first selected object
-        if obj.TypeId != "Sketcher::SketchObject":
-            FreeCAD.Console.PrintError(f"Selected object '{obj.Label}' is not a sketch.\n")
-            return
+if not parent_body:
+    FreeCAD.Console.PrintError("The sketch must be inside a body.\n")
+    raise Exception("No parent body found")
 
-        # Find the parent body (if any)
-        parent_body = None
-        for parent in obj.InList:
-            if parent.TypeId == "PartDesign::Body":
-                parent_body = parent
-                break
+# Create a Shape Binder from the sketch
+shape_binder = parent_body.newObject("PartDesign::ShapeBinder", obj.Label + "_ShapeBinder")
+shape_binder.Support = obj
+shape_binder.Label = obj.Label + "_ShapeBinder"
 
-        if not parent_body:
-            FreeCAD.Console.PrintError("The sketch must be inside a body.\n")
-            return
+# Recompute the document
+doc.recompute()
 
-        # Create a Shape Binder from the sketch
-        shape_binder = parent_body.newObject("PartDesign::ShapeBinder", obj.Label + "_ShapeBinder")
-        shape_binder.Support = obj
-        shape_binder.Label = obj.Label + "_ShapeBinder"
+# Check the user's preference for deleting the sketch
+delete_preference = get_delete_preference()
+delete_sketch = False
 
-        # Recompute the document
-        doc.recompute()
+if delete_preference == "Always":
+    delete_sketch = True
+elif delete_preference == "Never":
+    delete_sketch = False
+else:
+    # Create a dialog box to ask the user if they want to delete the sketch
+    dialog = QtGui.QMessageBox()
+    dialog.setWindowTitle("Delete Original Sketch")
+    dialog.setText(f"Do you want to delete the original sketch '{obj.Label}'?\nThe Shape Binder has been created and can be used independently.")
+    dialog.setStandardButtons(QtGui.QMessageBox.NoButton)  # Remove default buttons
 
-        # Check the user's preference for deleting the sketch
-        delete_preference = get_delete_preference()
+    # Add custom buttons
+    always_button = dialog.addButton("Always", QtGui.QMessageBox.AcceptRole)
+    yes_button = dialog.addButton("Yes", QtGui.QMessageBox.YesRole)
+    no_button = dialog.addButton("No", QtGui.QMessageBox.NoRole)
+    never_button = dialog.addButton("Never", QtGui.QMessageBox.RejectRole)
+
+    dialog.exec_()
+
+    # Determine the user's choice
+    clicked_button = dialog.clickedButton()
+    if clicked_button == always_button:
+        delete_sketch = True
+        set_delete_preference("Always")
+    elif clicked_button == yes_button:
+        delete_sketch = True
+    elif clicked_button == no_button:
         delete_sketch = False
+    elif clicked_button == never_button:
+        delete_sketch = False
+        set_delete_preference("Never")
 
-        if delete_preference == "Always":
-            delete_sketch = True
-        elif delete_preference == "Never":
-            delete_sketch = False
-        else:
-            # Create a dialog box to ask the user if they want to delete the sketch
-            dialog = QtGui.QMessageBox()
-            dialog.setWindowTitle("Delete Original Sketch")
-            dialog.setText(f"Do you want to delete the original sketch '{obj.Label}'?\nThe Shape Binder has been created and can be used independently.")
-            dialog.setStandardButtons(QtGui.QMessageBox.NoButton)  # Remove default buttons
+# Delete the sketch if the user chose to
+if delete_sketch:
+    doc.removeObject(obj.Name)
+    FreeCAD.Console.PrintMessage(f"Original sketch '{obj.Label}' has been deleted.\n")
+else:
+    FreeCAD.Console.PrintMessage(f"Original sketch '{obj.Label}' has been retained.\n")
 
-            # Add custom buttons
-            always_button = dialog.addButton("Always", QtGui.QMessageBox.AcceptRole)
-            yes_button = dialog.addButton("Yes", QtGui.QMessageBox.YesRole)
-            no_button = dialog.addButton("No", QtGui.QMessageBox.NoRole)
-            never_button = dialog.addButton("Never", QtGui.QMessageBox.RejectRole)
-
-            dialog.exec_()
-
-            # Determine the user's choice
-            clicked_button = dialog.clickedButton()
-            if clicked_button == always_button:
-                delete_sketch = True
-                set_delete_preference("Always")
-            elif clicked_button == yes_button:
-                delete_sketch = True
-            elif clicked_button == no_button:
-                delete_sketch = False
-            elif clicked_button == never_button:
-                delete_sketch = False
-                set_delete_preference("Never")
-
-        # Delete the sketch if the user chose to
-        if delete_sketch:
-            doc.removeObject(obj.Name)
-            FreeCAD.Console.PrintMessage(f"Original sketch '{obj.Label}' has been deleted.\n")
-        else:
-            FreeCAD.Console.PrintMessage(f"Original sketch '{obj.Label}' has been retained.\n")
-
-        FreeCAD.Console.PrintMessage(f"Shape Binder created for '{obj.Label}' as '{shape_binder.Label}'.\n")
-
-    def IsActive(self):
-        # Enable the command only if a document is active and PartDesign is loaded
-        return FreeCAD.ActiveDocument is not None and "PartDesign" in FreeCADGui.listWorkbenches()
-
-# Register the command in FreeCAD
-FreeCADGui.addCommand("FreezeSketch", FreezeSketchCommand())
+FreeCAD.Console.PrintMessage(f"Shape Binder created for '{obj.Label}' as '{shape_binder.Label}'.\n")
