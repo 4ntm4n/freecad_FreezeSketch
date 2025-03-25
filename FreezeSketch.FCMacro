@@ -9,7 +9,6 @@
 # __Date__ = "2025-03-24"
 # __License__ = "MIT"
 # __Web__ = "https://github.com/4ntm4n/FreeCAD-FreezeSketch"
-# __Wiki__ = "https://wiki.freecad.org/Macro_FreezeSketch"  # Optional, if you create a wiki page
 # __Icon__ = ":/icons/DrawStyleShaded.svg"
 # __Help__ = "Select a sketch in a PartDesign Body and run the macro."
 # __Status__ = "Stable"
